@@ -8,8 +8,11 @@ def clean_up(input_signal):
     for i in range(l):
         if math.isnan(output_signal[i]):
             j = 1
-            while math.isnan(output_signal[i + j]) and i + j < l:
-                j = j + 1
+            while i + j < l:
+                if math.isnan(output_signal[i + j]):
+                    j = j + 1
+                else:
+                    break
             step = 0
             if i + j == l:
                 step = output_signal[i - 1] - output_signal[i - 2]

@@ -10,7 +10,7 @@ threshold = 40
 gap = 10
 fs = 200
 
-file_number = 13
+file_number = 17
 df = pd.read_csv('BW_ (' + str(file_number) + ').csv')  # reading the CSV file
 
 ECG_data = list([float(x) for x in df['dataPoint']])  #
