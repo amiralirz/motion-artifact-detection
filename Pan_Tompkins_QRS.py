@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import signal as sg
 
+
 class Pan_Tompkins_QRS():
 
     def band_pass_filter(self, signal):
