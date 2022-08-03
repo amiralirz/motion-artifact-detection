@@ -1,20 +1,16 @@
 import numpy
 import pandas as pd
-import numpy as np
 import wfdb
 from Pan_Tompkins_QRS import *
 from Data_cleaner import *
-import matplotlib.pyplot as plt
-import os
 import bisect
 
 # file_number = 50
 # input_directory = r'C:\hmmmmmmmm\Work\Data\motion artifact data wfdb\wfdb40sec/'
-input_directory = input("input file directory : ") or "C:\hmmmmmmmm\Work\Data\motion artifact data wfdb\wfdb40sec"
-file_name = input("file name : ") or "082364"
-output_directory = input(
-    "output file directory : ") or "C:\hmmmmmmmm\Work\Data\motion artifact data wfdb\Sample_outputs"
-threshold = int(input("threshold : ") or '62')
+input_directory = input("input file directory : ")
+file_name = input("file name : ")
+output_directory = input("output file directory (default is input file directory) : ") or input_directory
+threshold = int(input("threshold (default is 62) : ") or '62')
 
 # this part is for reading csv files
 
@@ -31,11 +27,6 @@ annotation = wfdb.rdann(input_directory + '/' + file_name, 'rpeak')
 ann_symbol = annotation.symbol.copy()
 ann_sample = annotation.sample.copy().tolist()
 ann_subtype = annotation.subtype.copy().tolist()
-# print(annotation.sample)
-# print(annotation.symbol)
-# print(annotation.subtype)
-
-# wfdb.plot_wfdb(record, annotation, title=str(file_number))
 
 fs = record.fs
 gap = int(2 / 10 * fs)
@@ -63,7 +54,6 @@ result = result[result > 0]  # cleaning up the training data
 R_peak_index = result.copy()
 
 is_motion_artifact = [0] * (len(R_peak_index) - 1)  # this is the primary output of the code
-fig = [0] * len(ECG_data)  # this array is only used for presentation
 
 for i in range(len(R_peak_index) - 1):
     if R_peak_index[i] != R_peak_index[i + 1]:
@@ -73,7 +63,6 @@ for i in range(len(R_peak_index) - 1):
         v = np.var(section) ** 0.5  # calculating the standard deviation of each section
         if v > threshold:
             is_motion_artifact[i] = 1
-            fig[R_peak_index[i] + gap: R_peak_index[i+1] - gap] = [v * 10] * (R_peak_index[i+1] - gap - R_peak_index[i] - gap)
         else:
             is_motion_artifact[i] = 0
 
@@ -85,7 +74,6 @@ noise_episode_margin_counter = noise_episode_margin
 noise_episode_starts = []
 noise_episode_ends = []
 noise_episodes = 0
-
 
 for i in range(len(is_motion_artifact)):  # finding and storing the index of noise episodes
     if is_motion_artifact[i] == 1:
@@ -106,6 +94,11 @@ for i in range(len(is_motion_artifact)):  # finding and storing the index of noi
                 noise_episode_ends.append(noise_episode_end_index)
                 noise_episode_starts.append(noise_episode_start_index)
                 noise_episodes += 1
+    if i == len(is_motion_artifact) - 1 and noise_episode_started:
+        noise_episode_end_index = data_length - 1
+        noise_episode_ends.append(noise_episode_end_index)
+        noise_episode_starts.append(noise_episode_start_index)
+        noise_episodes += 1
 
 if noise_episodes > 1:
     i = 0
@@ -129,31 +122,7 @@ for i in range(noise_episodes):  # adding the episodes to tha annotation file
     ann_symbol.insert(insertion_index, '~')
     ann_subtype.insert(insertion_index, 0)
 
-for i in range(len(ann_sample)):
-    if ann_symbol[i] == '~':
-        print(f"{ann_sample[i]} : {ann_symbol[i]} : {ann_subtype[i]}")
-
 wfdb.wrann(file_name, 'atr', np.array(ann_sample), ann_symbol, np.array(ann_subtype), np.array([0] * len(ann_sample)),
            np.array([0] * len(ann_sample)),
            [''] * len(ann_sample), fs=record.fs,
            write_dir="C:\hmmmmmmmm\Work\Data\motion artifact data wfdb\Sample_outputs")
-
-if is_motion_artifact.count(1) > 0:
-    print(f'the sample has Motion Artifact : {is_motion_artifact.count(1)}')
-
-ai = []
-for i in range(len(ann_symbol)):
-    if ann_symbol[i] == '~':
-        ai.append(ann_sample[i])
-
-print(ai)
-bi = [4000] * len(ai)
-
-plt.figure(figsize=(18, 8), dpi=100)
-plt.plot(ECG_data)  # ECG data
-plt.plot(fig)  # motion artifact data
-plt.scatter(result, signal[result], color='red', s=50, marker='*')  # peaks
-plt.stem(ai, bi, 'g')
-plt.title('file : ' + file_name)
-plt.xlabel('samples')
-plt.show()
