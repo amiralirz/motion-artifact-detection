@@ -1,42 +1,32 @@
-import numpy
 import pandas as pd
 import wfdb
 from Pan_Tompkins_QRS import *
 from Data_cleaner import *
 import bisect
+import argparse
 
-# file_number = 50
-# input_directory = r'C:\hmmmmmmmm\Work\Data\motion artifact data wfdb\wfdb40sec/'
-input_directory = input("input file directory : ")
-file_name = input("file name : ")
-output_directory = input("output file directory (default is input file directory) : ") or input_directory
-threshold = int(input("threshold (default is 62) : ") or '62')
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input", required=True, help="input file directory")
+parser.add_argument("-o", "--output", required=False, help="output file directory. default is the input file directory")
+parser.add_argument("-t", "--threshold", required=False, help="Threshold used for Artifact detection. default is 62. normal range is (40 90)")
+parser.add_argument("-g", "--gap", required=False, help="The number of samples ignored around R peaks. default is (fs * 0.2). normal range is (10 100)")
+args = vars(parser.parse_args())
 
-# this part is for reading csv files
+input_directory = args["input"]
+output_directory = args["output"] or input_directory[:input_directory.rfind("\\")]
+file_name = input_directory[input_directory.rfind("\\") + 1:]
 
-# file = directory + file_names[file_number]
-# df = pd.read_csv(file)  # reading the CSV file
-# ECG_data = df.values[:, 0]
-# ECG_data = list([float(x) for x in df['dataPoint']])
+output_directory = args["output"] or output_directory
+threshold = int(args["threshold"] or '62')
 
-# this part is for reading wfdb files
-
-record = wfdb.rdrecord(input_directory + '/' + file_name)
+record = wfdb.rdrecord(input_directory)
 ECG_data = record.p_signal[:, 0]
-annotation = wfdb.rdann(input_directory + '/' + file_name, 'rpeak')
-ann_symbol = annotation.symbol.copy()
-ann_sample = annotation.sample.copy().tolist()
-ann_subtype = annotation.subtype.copy().tolist()
 
 fs = record.fs
-gap = int(2 / 10 * fs)
+gap = int(str(int(2 / 10 * fs)) or args["gap"])
 
 ECG_data = clean_up(ECG_data)  # cleaning the gaps in the data using extrapolation
 data_length = len(ECG_data)
-
-for i in range(len(ECG_data)):
-    if numpy.isnan(ECG_data[i]):
-        print(i)
 
 for i in range(len(ECG_data)):
     ECG_data[i] = math.floor(ECG_data[i] * 400)  # converting the data to io int type with minimum loss
@@ -52,6 +42,10 @@ result = hr.find_r_peaks()  # finding the index of R peaks
 result = np.array(result)  # converting the output to a numpy array
 result = result[result > 0]  # cleaning up the training data
 R_peak_index = result.copy()
+
+ann_sample = R_peak_index.copy().tolist()
+ann_symbol = ["N"] * len(R_peak_index)
+ann_subtype = [0] * len(R_peak_index)
 
 is_motion_artifact = [0] * (len(R_peak_index) - 1)  # this is the primary output of the code
 
@@ -125,4 +119,4 @@ for i in range(noise_episodes):  # adding the episodes to tha annotation file
 wfdb.wrann(file_name, 'atr', np.array(ann_sample), ann_symbol, np.array(ann_subtype), np.array([0] * len(ann_sample)),
            np.array([0] * len(ann_sample)),
            [''] * len(ann_sample), fs=record.fs,
-           write_dir="C:\hmmmmmmmm\Work\Data\motion artifact data wfdb\Sample_outputs")
+           write_dir=output_directory)
