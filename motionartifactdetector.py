@@ -3,29 +3,6 @@ import wfdb
 from Pan_Tompkins_QRS import *
 from Data_cleaner import *
 import bisect
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input", required=True, help="input file directory")
-parser.add_argument("-o", "--output", required=False, help="output file directory. the default is the input file "
-                                                           "directory")
-parser.add_argument("-t", "--threshold", required=False,
-                    help="Threshold used for Artifact detection. default is 62 and the normal range is (40 90)")
-parser.add_argument("-g", "--gap", required=False,
-                    help="The number of samples ignored around R peaks. default is (fs * 0.2) and the normal range is ("
-                         "10 100)")
-parser.add_argument("-m", "--margin", required=False, help="the number of R peaks before and after an artifact that "
-                                                           "will be included in the episodes. default is 5 and the "
-                                                           "normal range is (1 7)")
-args = vars(parser.parse_args())
-
-input_directory = args["input"]
-output_directory = args["output"] or input_directory[:input_directory.rfind("\\")]
-file_name = input_directory[input_directory.rfind("\\") + 1:]
-g = int(str(30) or args["gap"])
-output_directory = args["output"] or output_directory
-t = int(args["threshold"] or '62')
-m = int(args["margin"] or '5')
 
 
 class MotionArtifactDetector:
@@ -49,7 +26,7 @@ class MotionArtifactDetector:
         # converting the datatype to pandas dataframe
         input_signal = pd.DataFrame(np.array([list(range(len(ecg_data))), ecg_data]).T, columns=['TimeStamp', 'ecg'])
 
-        output_signal = qrs_detector.solve(input_signal)  # this output is not used
+        qrs_detector.solve(input_signal)  # finding the peaks
         signal = np.array(ecg_data)  # converting to numpy array
         hr = heart_rate(signal, fs)  # this class has a method for peak detection
         result = hr.find_r_peaks()  # finding the index of R peaks
@@ -133,8 +110,3 @@ class MotionArtifactDetector:
                                  np.array([0] * len(ann_sample)),
                                  np.array([0] * len(ann_sample)), [''] * len(ann_sample), fs=record.fs)
         return output
-
-
-detector = MotionArtifactDetector(input_directory)
-ann = detector.annotate(t, g, m)
-ann.wrann(True, output_directory)
