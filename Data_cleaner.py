@@ -10,7 +10,7 @@ def clean_up(input_signal):
 
     output_signal = input_signal.copy()
     for i in range(l):
-        if math.isnan(output_signal[i]): # checking if the input is nan
+        if math.isnan(output_signal[i]):  # checking if the input is nan
             j = 1
             while i + j < l:
                 if math.isnan(output_signal[i + j]):
