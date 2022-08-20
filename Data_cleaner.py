@@ -1,8 +1,13 @@
 import math
-
+import numpy as np
 
 def clean_up(input_signal):
     l = len(input_signal)  # length of the signal
+    m = np.mean(input_signal)
+    for i in range(len(input_signal)):
+        if input_signal[i] < m / 2:
+            input_signal[i] = m
+
     output_signal = input_signal.copy()
     for i in range(l):
         if math.isnan(output_signal[i]): # checking if the input is nan
